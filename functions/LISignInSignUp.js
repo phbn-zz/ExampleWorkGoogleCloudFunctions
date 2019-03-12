@@ -89,7 +89,7 @@ exports.createLIUserWithPhone = (req, res) => {
             return e;
           });
 
-        console.log("Returning customToken to App");
+        console.log("Returning customToken to App: " + result);
         return res.status(200).send({ status: 200, data: result });
       });
     })
@@ -126,7 +126,7 @@ exports.LISignInSignUp = (req, res) => {
           state,
           (error, results) => {
             if (error) {
-              console.log(error)
+              console.log(error);
               throw error;
             }
             console.log("Received Access Token:", results.access_token);
@@ -219,7 +219,11 @@ function createFirebaseUser(linkedInData, data, req) {
                 {
                   profile: {
                     linkedInUrl: linkedInData.publicProfileUrl,
-                    visible: true
+                    visible: true,
+                    firstName: data.first_name,
+                    lastName: data.last_name,
+                    email: data.email,
+                    headline: linkedInData.headline
                   }
                 },
                 { merge: true }
@@ -233,18 +237,38 @@ function createFirebaseUser(linkedInData, data, req) {
       })
       .catch(() => {
         console.log("LinkedIn email not found in database. Creating user...");
-        admin
-          .firestore()
-          .collection("authStatesLI")
-          .doc(data.email)
-          .set({ linkedInData })
-          .then(() => {
-            return resolve("phoneNumberNeeded");
-          })
-          .catch(error => {
-            console.error(error);
-            reject(error);
-          });
+        if (data.phone === undefined) {
+          admin
+            .firestore()
+            .collection("authStatesLI")
+            .doc(data.email)
+            .set({ linkedInData })
+            .then(() => {
+              return resolve("phoneNumberNeeded");
+            })
+            .catch(error => {
+              console.error(error);
+              reject(error);
+            });
+        } else {
+          createUser
+            .createCustomer(data)
+            .catch(error => {
+              console.error(error);
+              reject(error);
+            })
+            .then(result => {
+              const uid = result.uid;
+              admin.auth().updateUser(uid, {
+                photoURL: linkedInData.pictureUrls.values[0]
+              });
+              return resolve(createCustomToken(uid, linkedInData));
+            })
+            .catch(error => {
+              console.error(error);
+              reject(error);
+            });
+        }
       });
   });
 }

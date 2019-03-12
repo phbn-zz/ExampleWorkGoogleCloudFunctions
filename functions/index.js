@@ -13,8 +13,9 @@ firestore.settings({ timestampsInSnapshots: true });
 const region = "us-central1";
 
 /** User management */
-exports.createUser = functions.region(region).https.onCall((data, context) => {
-  createUser.createCustomer(req, res);
+exports.createUser = functions.region(region).https.onCall(data => {
+  let customer = data.customer;
+  return createUser.createCustomer(customer);
 });
 
 /** LinkedIn Auth */
